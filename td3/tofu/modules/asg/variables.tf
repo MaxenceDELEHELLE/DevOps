@@ -1,32 +1,24 @@
-variable "name" {
-  type = string
-}
-
 variable "ami_id" {
-  type = string
-}
-
-variable "user_data" {
-  type = string
-}
-
-variable "app_http_port" {
-  type = number
+  type    = string
+  default = "ami-0d6138036afbd7efb"
 }
 
 variable "instance_type" {
-  type = string
+  type    = string
+  default = "t3.micro"
 }
 
 variable "min_size" {
-  type = number
+  type    = number
+  default = 1
 }
 
 variable "max_size" {
-  type = number
+  type    = number
+  default = 3
 }
 
-variable "desired_capacity" {
-  type = number
+variable "user_data" {
+  type    = string
+  default = ""
 }
-
