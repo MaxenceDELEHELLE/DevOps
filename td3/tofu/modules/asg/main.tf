@@ -1,15 +1,16 @@
-provider "aws" {
-  region = "us-east-2"
+resource "aws_launch_template" "app" {
+  name_prefix   = var.name
+  image_id      = var.ami_id
+  instance_type = var.instance_type
+  user_data     = var.user_data
 }
 
-module "asg" {
-  source          = "git::https://github.com/MaxenceDELEHELLE/DevOps.git//td3/tofu/modules/asg?ref=main"
-  name            = "sample-app-asg"
-  ami_id          = "ami-0d6138036afbd7efb" # Replace with your AMI ID
-  user_data       = filebase64("${path.module}/user-data.sh")
-  app_http_port   = 8080
-  instance_type   = "t3.micro"
-  min_size        = 1
-  max_size        = 10
-  desired_capacity = 3
+resource "aws_autoscaling_group" "asg" {
+  min_size = var.min_size
+  max_size = var.max_size
+
+  launch_template {
+    id      = aws_launch_template.app.id
+    version = "$Latest"
+  }
 }
