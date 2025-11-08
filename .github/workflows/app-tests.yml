@@ -1,16 +1,55 @@
-name: Sample App Tests
-on: push
+name: CI-CD
+
+# Trigger on push or pull request to main branch
+on:
+  push:
+    branches: [ "app_finance" ]
+  pull_request:
+    branches: [ "app_finance" ]
 
 jobs:
-  sample_app_tests:
-    name: "Run Tests Using Jest"
+  build-test-deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v3
-      - name: Install dependencies
-        working-directory: td5/scripts/sample-app
-        run: npm install
-      - name: Run tests
-        working-directory: td5/scripts/sample-app
-        run: npm test
+      # 1️⃣ Checkout the repository
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 2️⃣ Set up Node.js
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      # 3️⃣ Install backend dependencies
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          npm install
+
+      # 4️⃣ Run backend tests
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm test
+
+      # 5️⃣ Build and push Docker image for backend
+      - name: Build and push Docker image
+        run: |
+          cd backend
+          docker build -t myuser/my-backend:latest .
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+          docker push myuser/my-backend:latest
+
+      # 6️⃣ Deploy to Kubernetes
+      - name: Deploy backend to Kubernetes
+        uses: azure/k8s-deploy@v5
+        with:
+          manifests: |
+            kubernetes/backend-deployment.yaml
+            kubernetes/backend-service.yaml
+          images: |
+            myuser/my-backend:latest
+          namespace: default
 
