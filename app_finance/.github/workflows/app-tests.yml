@@ -3,9 +3,9 @@ name: CI-CD
 # Trigger on push or pull request to main branch
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "app_finance" ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ "app_finance" ]
 
 jobs:
   build-test-deploy:
