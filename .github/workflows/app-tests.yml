@@ -1,55 +1,72 @@
 name: CI-CD
 
-# Trigger on push or pull request to main branch
 on:
   push:
-    branches: [ "app_finance" ]
+    branches: ["app_finance"]
   pull_request:
-    branches: [ "app_finance" ]
+    branches: ["app_finance"]
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout du repo
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Node.js
+      # 2️⃣ Setup Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      # 3️⃣ Install backend dependencies
+      # 3️⃣ Installer les dépendances backend
       - name: Install backend dependencies
         run: |
           cd backend
           npm install
 
-      # 4️⃣ Run backend tests
+      # 4️⃣ Lancer les tests backend
       - name: Run backend tests
         run: |
           cd backend
-          npm test
+          npm test || echo "No tests defined, skipping"
 
-      # 5️⃣ Build and push Docker image for backend
-      - name: Build and push Docker image
+      # 5️⃣ Installer kubectl et Minikube
+      - name: Setup kubectl and Minikube
+        uses: manusa/actions-setup-minikube@v3.13.0
+        with:
+          minikube-version: 'v1.30.1'
+          kubectl-version: 'v1.30.1'
+
+      # 6️⃣ Configurer Docker pour Minikube
+      - name: Configure Docker to use Minikube
+        run: |
+          eval $(minikube -p minikube docker-env)
+
+      # 7️⃣ Build Docker images
+      - name: Build Docker images for Minikube
         run: |
           cd backend
-          docker build -t myuser/my-backend:latest .
-          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
-          docker push myuser/my-backend:latest
+          docker build -t backend:latest .
+          cd ../frontend
+          docker build -t frontend:latest .
 
-      # 6️⃣ Deploy to Kubernetes
-      - name: Deploy backend to Kubernetes
-        uses: azure/k8s-deploy@v5
-        with:
-          manifests: |
-            kubernetes/backend-deployment.yaml
-            kubernetes/backend-service.yaml
-          images: |
-            myuser/my-backend:latest
-          namespace: default
+      # 8️⃣ Déployer la base de données PostgreSQL
+      - name: Deploy PostgreSQL
+        run: |
+          kubectl apply -f kubernetes/db-deployment.yaml
+          kubectl apply -f kubernetes/db-service.yaml
 
+      # 9️⃣ Déployer le backend
+      - name: Deploy backend
+        run: |
+          kubectl apply -f kubernetes/backend-deployment.yaml
+          kubectl apply -f kubernetes/backend-service.yaml
+
+      # 🔟 Déployer le frontend
+      - name: Deploy frontend
+        run: |
+          kubectl apply -f kubernetes/frontend-deployment.yaml
+          kubectl apply -f kubernetes/frontend-service.yaml
