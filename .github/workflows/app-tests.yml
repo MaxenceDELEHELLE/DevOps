@@ -3,20 +3,20 @@ name: CI-CD
 # Trigger on push or pull request to app_finance branch
 on:
   push:
-    branches: [ "app_finance" ]
+    branches: ["app_finance"]
   pull_request:
-    branches: [ "app_finance" ]
+    branches: ["app_finance"]
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout the repository
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Set up Node.js
+      # 2️⃣ Setup Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
@@ -41,27 +41,32 @@ jobs:
           chmod +x kubectl
           sudo mv kubectl /usr/local/bin/
 
-      # 6️⃣ Start Minikube (with Docker)
-      - name: Start Minikube
+      # 6️⃣ Install Minikube
+      - name: Install Minikube
         run: |
           curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
           sudo install minikube-linux-amd64 /usr/local/bin/minikube
+
+      # 7️⃣ Start Minikube
+      - name: Start Minikube
+        run: |
           minikube start --driver=docker
 
-      # 7️⃣ Configure Docker to use Minikube
+      # 8️⃣ Configure Docker to use Minikube
       - name: Configure Docker
         run: |
           eval $(minikube docker-env)
 
-      # 8️⃣ Build backend Docker image
-      - name: Build backend Docker image
+      # 9️⃣ Build Docker images for backend and frontend
+      - name: Build Docker images
         run: |
           cd backend
           docker build -t backend:latest .
+          cd ../frontend
+          docker build -t frontend:latest .
 
-      # 9️⃣ Deploy backend to Kubernetes
-      - name: Deploy backend to Kubernetes
+      # 🔟 Deploy all Kubernetes resources
+      - name: Deploy to Kubernetes
         run: |
-          minikube kubectl -- apply -f kubernetes/backend-deployment.yaml
-          minikube kubectl -- apply -f kubernetes/backend-service.yaml
+          minikube kubectl -- apply -f kubernetes/
 
