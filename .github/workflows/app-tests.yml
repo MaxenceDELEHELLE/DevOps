@@ -1,72 +1,67 @@
 name: CI-CD
 
+# Trigger on push or pull request to app_finance branch
 on:
   push:
-    branches: ["app_finance"]
+    branches: [ "app_finance" ]
   pull_request:
-    branches: ["app_finance"]
+    branches: [ "app_finance" ]
 
 jobs:
   build-test-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      # 1️⃣ Checkout du repo
+      # 1️⃣ Checkout the repository
       - name: Checkout repository
         uses: actions/checkout@v3
 
-      # 2️⃣ Setup Node.js
+      # 2️⃣ Set up Node.js
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '20'
 
-      # 3️⃣ Installer les dépendances backend
+      # 3️⃣ Install backend dependencies
       - name: Install backend dependencies
         run: |
           cd backend
           npm install
 
-      # 4️⃣ Lancer les tests backend
+      # 4️⃣ Run backend tests
       - name: Run backend tests
         run: |
           cd backend
           npm test || echo "No tests defined, skipping"
 
-      # 5️⃣ Installer kubectl et Minikube
-      - name: Setup kubectl and Minikube
-        uses: manusa/actions-setup-minikube@latest
-        with:
-          minikube-version: 'v1.30.1'
-          kubectl-version: 'v1.30.1'
-
-      # 6️⃣ Configurer Docker pour Minikube
-      - name: Configure Docker to use Minikube
+      # 5️⃣ Install kubectl
+      - name: Install kubectl
         run: |
-          eval $(minikube -p minikube docker-env)
+          curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+          chmod +x kubectl
+          sudo mv kubectl /usr/local/bin/
 
-      # 7️⃣ Build Docker images
-      - name: Build Docker images for Minikube
+      # 6️⃣ Start Minikube (with Docker)
+      - name: Start Minikube
+        run: |
+          curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+          sudo install minikube-linux-amd64 /usr/local/bin/minikube
+          minikube start --driver=docker
+
+      # 7️⃣ Configure Docker to use Minikube
+      - name: Configure Docker
+        run: |
+          eval $(minikube docker-env)
+
+      # 8️⃣ Build backend Docker image
+      - name: Build backend Docker image
         run: |
           cd backend
           docker build -t backend:latest .
-          cd ../frontend
-          docker build -t frontend:latest .
 
-      # 8️⃣ Déployer la base de données PostgreSQL
-      - name: Deploy PostgreSQL
+      # 9️⃣ Deploy backend to Kubernetes
+      - name: Deploy backend to Kubernetes
         run: |
-          kubectl apply -f kubernetes/db-deployment.yaml
-          kubectl apply -f kubernetes/db-service.yaml
+          minikube kubectl -- apply -f kubernetes/backend-deployment.yaml
+          minikube kubectl -- apply -f kubernetes/backend-service.yaml
 
-      # 9️⃣ Déployer le backend
-      - name: Deploy backend
-        run: |
-          kubectl apply -f kubernetes/backend-deployment.yaml
-          kubectl apply -f kubernetes/backend-service.yaml
-
-      # 🔟 Déployer le frontend
-      - name: Deploy frontend
-        run: |
-          kubectl apply -f kubernetes/frontend-deployment.yaml
-          kubectl apply -f kubernetes/frontend-service.yaml
